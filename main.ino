@@ -19,10 +19,10 @@ EthernetServer server(80);
 String request = String(100);
 String parsedRequest = "";
 
-void setup() 
+void setup()
 {
   // Open Serial communications and wait for port to open.
-  Serial.begin(115200);  
+  Serial.begin(115200);
   // Start the Ethernet connection and the server.
   Ethernet.begin(mac, ip);
   server.begin();
@@ -34,67 +34,67 @@ void setup()
 }
 
 
-void loop() 
+void loop()
 {
   // Listen for incoming clients.
   EthernetClient client = server.available();
-  
-  if (client) 
+
+  if (client)
   {
     Serial.println("Client connected");
-  
+
     // An http request ends with a blank line.
     boolean currentLineIsBlank = true;
-    
-    while (client.connected()) 
+
+    while (client.connected())
     {
-      if (client.available()) 
+      if (client.available())
       {
         char c = client.read();
-        
+
         // Read http request.
-        if (request.length() < 100) 
+        if (request.length() < 100)
         {
-          request += c; 
-        } 
-        if (c == '\n' && currentLineIsBlank) 
+          request += c;
+        }
+        if (c == '\n' && currentLineIsBlank)
         {
           Serial.println("Finished reading request.");
           Serial.println("http request: '" + request + "'");
-          
-          Serial.println("Reading sensor."); 
-          
+
+          Serial.println("Reading sensor.");
+
           String error = "";
           // Send command to all the sensors for temperature conversion
           sendPrometheusResponse(client, error);
-        
+
           break;
         }
-        
-        if (c == '\n') 
+
+        if (c == '\n')
         {
           // Character is a new line.
           currentLineIsBlank = true;
-        } 
-        else if (c != '\r') 
+        }
+        else if (c != '\r')
         {
           // Character is not a new line or a carriage return.
           currentLineIsBlank = false;
         }
-        
+
       }
-      
+
     }
-    
+
     // Give the web browser time to receive the data.
     delay(1);
-    
+
     // Close the connection:
     client.stop();
-    
+
     Serial.println("Client disonnected");
   }
-  
+
   // Reset the request.
   request = "";
   parsedRequest = "";
@@ -109,7 +109,7 @@ void sendPrometheusResponse(EthernetClient client, String error)
   if(error == "")
   {
     Serial.println("Sending Prometheus response.");
-    
+
     // Send a standard http response header.
     client.println("HTTP/1.1 200 OK");
 
@@ -118,8 +118,8 @@ void sendPrometheusResponse(EthernetClient client, String error)
     client.println("Content-Type: text/plain; version=0.0.4; charset=utf-8");
     client.println("Connnection: close");
     client.println();
-    
-    // Send Prometheus\serialport body.    
+
+    // Send Prometheus\serialport body.
     // we ask all sensors
     while (ds.selectNext()) {
       uint8_t address[8];
@@ -152,15 +152,15 @@ void sendPrometheusResponse(EthernetClient client, String error)
       client.print("\n");
     }
 
-    
+
   }
   else
   {
     Serial.println("Sending Prometheus error response.");
-    
+
     // Send a standard http response header.
     client.println("HTTP/1.1 500 Internal Server Error");
     client.println("Connnection: close");
-    client.println();   
+    client.println();
   }
 }
