@@ -56,6 +56,7 @@ UIPClient::UIPClient(uip_userdata_t* conn_data) :
 int
 UIPClient::connect(IPAddress ip, uint16_t port)
 {
+  #if UIP_ACTIVE_OPEN > 0
   #if ACTLOGLEVEL>=LOG_DEBUG_V3
     LogObject.uart_send_strln(F("UIPClient::connect(IPAddress ip, uint16_t port) DEBUG_V3:Function started"));
   #endif
@@ -91,6 +92,7 @@ UIPClient::connect(IPAddress ip, uint16_t port)
 #endif
         }
     }
+  #endif
   return 0;
 }
 
