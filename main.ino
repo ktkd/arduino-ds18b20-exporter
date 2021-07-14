@@ -167,13 +167,12 @@ void send_prometheus_response(EthernetClient &client)
 	infoln("sending_response");
 
 	// Send a standard http response header.
-	client.println("HTTP/1.1 200 OK");
+	client.print("HTTP/1.1 200 OK\r\n");
 
 	// Content-Type from https://github.com/siimon/prom-client/blob/master/lib/registry.js
 	// 'text/plain; version=0.0.4; charset=utf-8'
-	client.println("Content-Type: text/plain; version=0.0.4; charset=utf-8");
-	client.println("Connnection: close");
-	client.println();
+	client.print("Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n");
+	client.print("Connnection: close\r\n\r\n");
 
 	// Send Prometheus body.
 	// We ask all sensors.
@@ -205,7 +204,7 @@ void send_prometheus_response(EthernetClient &client)
 
 		const float temperature = ds.getTempC();
 		client.print(temperature);
-		client.print("\n");
+		client.print("\r\n");
 		debug(" temperature=");
 		debugln(temperature);
 	}
