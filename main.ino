@@ -107,7 +107,7 @@ void loop()
 /*
  *  Format and send HTTP response for Prometheus.
  */
-void send_prometheus_response(EthernetClient client)
+void send_prometheus_response(EthernetClient &client)
 {
 	Serial.println("Sending Prometheus response.");
 
