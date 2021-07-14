@@ -29,9 +29,6 @@ DS18B20 ds(ds_pin);
 // Initialize the Ethernet server library.
 EthernetServer server(port);
 
-// String for reading from client
-String request = String(100);
-
 /*
  *  Logging macros:
  */
@@ -82,53 +79,45 @@ void loop()
 		info("client_connected remote_ip=");
 		infoln(client.remoteIP());
 
-		// An http request ends with a blank line.
-		boolean current_line_is_blank = true;
+		// Number of consecutive newlines.
+		uint8_t num_newlines = 0;
 
+		debugln("request_begin");
 		while (client.connected()) {
-			if (client.available()) {
-				char c = client.read();
+			char c = client.read();
 
-				// Read http request.
-				if (request.length() < 100) {
-					request += c;
-				}
+			if (c >= 0) {
+				// Skip all data until the end of HTTP request.
+				switch (c) {
+				case '\r':
+					// Ignore \r.
+					continue;
 
-				if (c == '\n' && current_line_is_blank) {
-					debug("got_request request='");
-					debug(request);
-					debugln('\'');
+				case '\n':
+					num_newlines++;
+					break;
 
-					infoln("reading_sensor");
-
-					// Send command to all the sensors for temperature conversion
-					send_prometheus_response(client);
-
+				default:
+					// Reset counter.
+					num_newlines = 0;
 					break;
 				}
 
-				if (c == '\n') {
-					// Character is a new line.
-					current_line_is_blank = true;
-				} else if (c != '\r') {
-					// Character is not a new line or a carriage return.
-					current_line_is_blank = false;
+				if (num_newlines == 2) {
+					debugln("request_end");
+					// Send answer.
+					send_prometheus_response(client);
+					break;
 				}
+				debug(c);
 			}
 		}
 
-		// Give the web browser time to receive the data.
-		delay(1);
-
-		// Close the connection:
+		// Close the connection.
 		client.stop();
 
-		infoln("client_disconnected");
 		infoln();
 	}
-
-	// Reset the request.
-	request = "";
 }
 
 /*
@@ -181,4 +170,6 @@ void send_prometheus_response(EthernetClient &client)
 		client.print(ds.getTempC());
 		client.print("\n");
 	}
+
+	client.flush();
 }
