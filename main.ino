@@ -6,6 +6,9 @@
  *  Configuration:
  */
 
+// Comment this line to disable debug logging.
+#define ENABLE_DEBUG_LOGGING
+
 // Digital pin for sensors.
 const uint8_t ds_pin = 3;
 
@@ -30,20 +33,41 @@ EthernetServer server(port);
 String request = String(100);
 
 /*
+ *  Logging macros:
+ */
+#ifdef ENABLE_DEBUG_LOGGING
+#	define debug(...) Serial.print(__VA_ARGS__)
+#	define debugln(...) Serial.println(__VA_ARGS__)
+#else
+#	define debug(...)
+#	define debugln(...)
+#endif
+
+#define info(...) Serial.print(__VA_ARGS__)
+#define infoln(...) Serial.println(__VA_ARGS__)
+
+/*
  *  Initialization.
  */
 void setup()
 {
 	// Open Serial communications and wait for port to open.
 	Serial.begin(115200);
+
 	// Start the Ethernet connection and the server.
 	Ethernet.begin(mac, ip);
 	server.begin();
-	Serial.print("Server is at ");
-	Serial.println(Ethernet.localIP());
+
+	info("server_started ip=");
+	info(ip);
+	info(" port=");
+	info(port);
+
 	// Start the Temperature sensors
-	Serial.print("Devices: ");
-	Serial.println(ds.getNumberOfDevices());
+	info(" num_sensors=");
+	infoln(ds.getNumberOfDevices());
+
+	infoln();
 }
 
 /*
@@ -55,7 +79,8 @@ void loop()
 	EthernetClient client = server.available();
 
 	if (client) {
-		Serial.println("Client connected");
+		info("client_connected remote_ip=");
+		infoln(client.remoteIP());
 
 		// An http request ends with a blank line.
 		boolean current_line_is_blank = true;
@@ -70,10 +95,11 @@ void loop()
 				}
 
 				if (c == '\n' && current_line_is_blank) {
-					Serial.println("Finished reading request.");
-					Serial.println("http request: '" + request + "'");
+					debug("got_request request='");
+					debug(request);
+					debugln('\'');
 
-					Serial.println("Reading sensor.");
+					infoln("reading_sensor");
 
 					// Send command to all the sensors for temperature conversion
 					send_prometheus_response(client);
@@ -97,7 +123,8 @@ void loop()
 		// Close the connection:
 		client.stop();
 
-		Serial.println("Client disonnected");
+		infoln("client_disconnected");
+		infoln();
 	}
 
 	// Reset the request.
@@ -109,7 +136,7 @@ void loop()
  */
 void send_prometheus_response(EthernetClient &client)
 {
-	Serial.println("Sending Prometheus response.");
+	infoln("sending_response");
 
 	// Send a standard http response header.
 	client.println("HTTP/1.1 200 OK");
@@ -126,29 +153,31 @@ void send_prometheus_response(EthernetClient &client)
 		uint8_t address[8];
 		ds.getAddress(address);
 		client.print("sensor{addr=\"");
-		Serial.print("Address:");
+		infoln("sensor address=");
 		for (uint8_t i = 0; i < 8; i++) {
-			Serial.print(" ");
+			if (i) {
+				info('.');
+			}
 			client.print(address[i]);
-			Serial.print(address[i]);
+			info(address[i]);
 		}
-		Serial.println();
+		infoln();
 		client.print("\",res=\"");
-		Serial.print("Resolution: ");
-		Serial.println(ds.getResolution());
+		info("sensor resolution=");
+		infoln(ds.getResolution());
 		client.print(ds.getResolution());
 		client.print("\",pwr=\"");
-		Serial.print("Power Mode: ");
+		info("sensor pwr=");
 		if (ds.getPowerMode()) {
 			client.print("external");
-			Serial.println("external");
+			infoln("external");
 		} else {
 			client.print("parasite");
-			Serial.println("parasite");
+			infoln("parasite");
 		}
 		client.print("\"} ");
-		Serial.print("Temperature: ");
-		Serial.print(ds.getTempC());
+		info("sensor temperature=");
+		infoln(ds.getTempC());
 		client.print(ds.getTempC());
 		client.print("\n");
 	}
