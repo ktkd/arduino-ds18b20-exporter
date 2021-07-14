@@ -22,6 +22,9 @@ const IPAddress ip(192, 168, 1, 41);
 // TCP port for HTTP server.
 const uint16_t port = 80;
 
+// How long we should wait for request from client.
+const unsigned long request_timeout = 2000;  /* milliseconds */
+
 /*
  *  Global objects:
  */
@@ -112,7 +115,7 @@ void setup()
 void loop()
 {
 	// Listen for incoming clients.
-	EthernetClient client = server.available();
+	EthernetClient client = server.accept();
 
 	if (client) {
 		info("client_connected remote_ip=");
@@ -120,11 +123,14 @@ void loop()
 
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
+		// Time of connection start.
+		unsigned long start = millis();
 
 		debugln("request_begin");
 		while (client.connected()) {
 			Ethernet.maintain();
 			char c = client.read();
+			char last_printed = '\n';
 
 			if (c >= 0) {
 				// Skip all data until the end of HTTP request.
@@ -150,6 +156,17 @@ void loop()
 					break;
 				}
 				debug(c);
+				last_printed = c;
+			}
+
+			if (millis() - start > request_timeout) {
+				#ifdef ENABLE_DEBUG_LOGGING
+				if (last_printed != '\n') {
+					debugln();
+				}
+				#endif
+				infoln("error client_timeout");
+				break;
 			}
 		}
 
