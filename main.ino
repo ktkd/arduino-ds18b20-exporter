@@ -28,7 +28,6 @@ EthernetServer server(port);
 
 // String for reading from client
 String request = String(100);
-String parsed_request = "";
 
 /*
  *  Initialization.
@@ -76,9 +75,8 @@ void loop()
 
 					Serial.println("Reading sensor.");
 
-					String error = "";
 					// Send command to all the sensors for temperature conversion
-					send_prometheus_response(client, error);
+					send_prometheus_response(client);
 
 					break;
 				}
@@ -104,65 +102,54 @@ void loop()
 
 	// Reset the request.
 	request = "";
-	parsed_request = "";
 }
 
 /*
  *  Format and send HTTP response for Prometheus.
  */
-void send_prometheus_response(EthernetClient client, String error)
+void send_prometheus_response(EthernetClient client)
 {
-	if(error == "")
-	{
-		Serial.println("Sending Prometheus response.");
+	Serial.println("Sending Prometheus response.");
 
-		// Send a standard http response header.
-		client.println("HTTP/1.1 200 OK");
+	// Send a standard http response header.
+	client.println("HTTP/1.1 200 OK");
 
-		// Content-Type from https://github.com/siimon/prom-client/blob/master/lib/registry.js
-		// 'text/plain; version=0.0.4; charset=utf-8'
-		client.println("Content-Type: text/plain; version=0.0.4; charset=utf-8");
-		client.println("Connnection: close");
-		client.println();
+	// Content-Type from https://github.com/siimon/prom-client/blob/master/lib/registry.js
+	// 'text/plain; version=0.0.4; charset=utf-8'
+	client.println("Content-Type: text/plain; version=0.0.4; charset=utf-8");
+	client.println("Connnection: close");
+	client.println();
 
-		// Send Prometheus\serialport body.
-		// we ask all sensors
-		while (ds.selectNext()) {
-			uint8_t address[8];
-			ds.getAddress(address);
-			client.print("sensor{addr=\"");
-			Serial.print("Address:");
-			for (uint8_t i = 0; i < 8; i++) {
-				Serial.print(" ");
-				client.print(address[i]);
-				Serial.print(address[i]);
-			}
-			Serial.println();
-			client.print("\",res=\"");
-			Serial.print("Resolution: ");
-			Serial.println(ds.getResolution());
-			client.print(ds.getResolution());
-			client.print("\",pwr=\"");
-			Serial.print("Power Mode: ");
-			if (ds.getPowerMode()) {
-				client.print("external");
-				Serial.println("external");
-			} else {
-				client.print("parasite");
-				Serial.println("parasite");
-			}
-			client.print("\"} ");
-			Serial.print("Temperature: ");
-			Serial.print(ds.getTempC());
-			client.print(ds.getTempC());
-			client.print("\n");
+	// Send Prometheus\serialport body.
+	// we ask all sensors
+	while (ds.selectNext()) {
+		uint8_t address[8];
+		ds.getAddress(address);
+		client.print("sensor{addr=\"");
+		Serial.print("Address:");
+		for (uint8_t i = 0; i < 8; i++) {
+			Serial.print(" ");
+			client.print(address[i]);
+			Serial.print(address[i]);
 		}
-	} else {
-		Serial.println("Sending Prometheus error response.");
-
-		// Send a standard http response header.
-		client.println("HTTP/1.1 500 Internal Server Error");
-		client.println("Connnection: close");
-		client.println();
+		Serial.println();
+		client.print("\",res=\"");
+		Serial.print("Resolution: ");
+		Serial.println(ds.getResolution());
+		client.print(ds.getResolution());
+		client.print("\",pwr=\"");
+		Serial.print("Power Mode: ");
+		if (ds.getPowerMode()) {
+			client.print("external");
+			Serial.println("external");
+		} else {
+			client.print("parasite");
+			Serial.println("parasite");
+		}
+		client.print("\"} ");
+		Serial.print("Temperature: ");
+		Serial.print(ds.getTempC());
+		client.print(ds.getTempC());
+		client.print("\n");
 	}
 }
