@@ -123,6 +123,7 @@ void loop()
 
 		debugln("request_begin");
 		while (client.connected()) {
+			Ethernet.maintain();
 			char c = client.read();
 
 			if (c >= 0) {
