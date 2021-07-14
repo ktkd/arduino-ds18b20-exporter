@@ -9,6 +9,9 @@
 // Comment this line to disable debug logging.
 #define ENABLE_DEBUG_LOGGING
 
+// Maximum number of sensors.
+#define MAX_SENSORS 16
+
 // Digital pin for sensors.
 const uint8_t ds_pin = 3;
 
@@ -28,6 +31,15 @@ DS18B20 ds(ds_pin);
 
 // Initialize the Ethernet server library.
 EthernetServer server(port);
+
+// Total number of discovered sensors.
+uint8_t num_sensors;
+// Information about discovered sensors.
+struct {
+	uint8_t address[8];
+	uint8_t resolution;
+	bool external_power;
+} sensor_info[MAX_SENSORS];
 
 /*
  *  Logging macros:
@@ -58,11 +70,38 @@ void setup()
 	info("server_started ip=");
 	info(ip);
 	info(" port=");
-	info(port);
+	infoln(port);
 
-	// Start the Temperature sensors
-	info(" num_sensors=");
-	infoln(ds.getNumberOfDevices());
+	// Find all temperature sensors.
+	for (num_sensors = 0; ds.selectNext(); num_sensors++) {
+		if (num_sensors >= MAX_SENSORS) {
+			infoln("error_halt too_many_sensors");
+			for (;;);
+		};
+
+		info("found_sensor n=");
+		info(num_sensors);
+
+		ds.getAddress(sensor_info[num_sensors].address);
+		info(" addr=");
+		for (uint8_t i = 0; i < 8; i++) {
+			if (i) {
+				info('.');
+			}
+			info(sensor_info[num_sensors].address[i]);
+		}
+
+		info(" res=");
+		sensor_info[num_sensors].resolution = ds.getResolution();
+		info(sensor_info[num_sensors].resolution);
+
+		sensor_info[num_sensors].external_power = ds.getPowerMode();
+		if (sensor_info[num_sensors].external_power) {
+			infoln(" pwr=external");
+		} else {
+			infoln(" pwr=parasite");
+		}
+	}
 
 	infoln();
 }
@@ -113,7 +152,7 @@ void loop()
 			}
 		}
 
-		// Close the connection.
+		infoln("closing_connection");
 		client.stop();
 
 		infoln();
@@ -136,39 +175,39 @@ void send_prometheus_response(EthernetClient &client)
 	client.println("Connnection: close");
 	client.println();
 
-	// Send Prometheus\serialport body.
-	// we ask all sensors
-	while (ds.selectNext()) {
-		uint8_t address[8];
-		ds.getAddress(address);
+	// Send Prometheus body.
+	// We ask all sensors.
+	for (uint8_t i = 0; i < num_sensors; i++) {
+		debug("querying_sensor n=");
+		debug(i);
+
 		client.print("sensor{addr=\"");
-		infoln("sensor address=");
-		for (uint8_t i = 0; i < 8; i++) {
-			if (i) {
-				info('.');
+		for (uint8_t j = 0; j < 8; j++) {
+			if (j) {
+				client.print('.');
 			}
-			client.print(address[i]);
-			info(address[i]);
+			client.print(sensor_info[i].address[j]);
 		}
-		infoln();
+
+		// Select sensor by address.
+		ds.select(sensor_info[i].address);
+
 		client.print("\",res=\"");
-		info("sensor resolution=");
-		infoln(ds.getResolution());
-		client.print(ds.getResolution());
+		client.print(sensor_info[i].resolution);
+
 		client.print("\",pwr=\"");
-		info("sensor pwr=");
-		if (ds.getPowerMode()) {
+		if (sensor_info[i].external_power) {
 			client.print("external");
-			infoln("external");
 		} else {
 			client.print("parasite");
-			infoln("parasite");
 		}
 		client.print("\"} ");
-		info("sensor temperature=");
-		infoln(ds.getTempC());
-		client.print(ds.getTempC());
+
+		const float temperature = ds.getTempC();
+		client.print(temperature);
 		client.print("\n");
+		debug(" temperature=");
+		debugln(temperature);
 	}
 
 	client.flush();
