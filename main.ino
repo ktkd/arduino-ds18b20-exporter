@@ -2,22 +2,37 @@
 #include <UIPEthernet.h>
 #include <DS18B20.h>
 
-// Use Digital pin3 for sensor
-DS18B20 ds(3);
+/*
+ *  Configuration:
+ */
+
+// Digital pin for sensors.
+const uint8_t ds_pin = 3;
 
 // Ethernet Shield MAC address, use value on back of shield.
-byte mac[] = {0x90, 0xa2, 0xda, 0x0d, 0x10, 0x5a};
-
+const uint8_t mac[] = {0x90, 0xa2, 0xda, 0x0d, 0x10, 0x5a};
 // IP address, will depend on your local network.
-IPAddress ip(192, 168, 12, 41);
+const IPAddress ip(192, 168, 12, 41);
+// TCP port for HTTP server.
+const uint16_t port = 80;
 
-// Initialize the Ethernet server library, use port 80 for HTTP.
-EthernetServer server(80);
+/*
+ *  Global objects:
+ */
+
+// Initialize the sensors library.
+DS18B20 ds(ds_pin);
+
+// Initialize the Ethernet server library.
+EthernetServer server(port);
 
 // String for reading from client
 String request = String(100);
 String parsed_request = "";
 
+/*
+ *  Initialization.
+ */
 void setup()
 {
 	// Open Serial communications and wait for port to open.
@@ -32,6 +47,9 @@ void setup()
 	Serial.println(ds.getNumberOfDevices());
 }
 
+/*
+ *  Main loop.
+ */
 void loop()
 {
 	// Listen for incoming clients.
@@ -89,6 +107,9 @@ void loop()
 	parsed_request = "";
 }
 
+/*
+ *  Format and send HTTP response for Prometheus.
+ */
 void send_prometheus_response(EthernetClient client, String error)
 {
 	if(error == "")
