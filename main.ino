@@ -1,3 +1,5 @@
+#include <avr/wdt.h>
+
 #include <SPI.h>
 #include <UIPEthernet.h>
 #include <DS18B20.h>
@@ -25,6 +27,9 @@ static const uint16_t port = 80;
 // How long we should wait for request from client.
 static const unsigned long request_timeout = 2000;  /* milliseconds */
 
+// Reset system if no connections handled within this period of time.
+static const unsigned long max_time_without_connections = 60000;  /* milliseconds */
+
 /*
  *  Global objects:
  */
@@ -44,6 +49,9 @@ static struct {
 	uint8_t power_mode;
 } sensor_info[MAX_SENSORS];
 
+// Time of last connection start.
+static unsigned long last_connection_start;
+
 /*
  *  Logging macros:
  */
@@ -59,10 +67,21 @@ static struct {
 #define infoln(...) Serial.println(__VA_ARGS__)
 
 /*
+ *  Issue reset by watchdog.
+ */
+static void system_reset()
+{
+	wdt_enable(WDTO_15MS);
+	for (;;);
+}
+
+/*
  *  Initialization.
  */
 static void setup()
 {
+	wdt_enable(WDTO_4S);
+
 	// Open Serial communications and wait for port to open.
 	Serial.begin(115200);
 	infoln();
@@ -79,8 +98,8 @@ static void setup()
 	// Find all temperature sensors.
 	for (num_sensors = 0; ds.selectNext(); num_sensors++) {
 		if (num_sensors >= MAX_SENSORS) {
-			infoln("error_halt too_many_sensors");
-			for (;;);
+			infoln("error_fatal too_many_sensors");
+			system_reset();
 		};
 
 		info("found_sensor n=");
@@ -105,9 +124,12 @@ static void setup()
 		} else {
 			infoln(" pwr=parasite");
 		}
+
+		wdt_reset();
 	}
 
 	infoln();
+	last_connection_start = millis();
 }
 
 /*
@@ -115,6 +137,14 @@ static void setup()
  */
 static void loop()
 {
+	wdt_reset();
+	Ethernet.maintain();
+
+	if (millis() - last_connection_start > max_time_without_connections) {
+		infoln("error_fatal no_connections");
+		system_reset();
+	}
+
 	// Listen for incoming clients.
 	EthernetClient client = server.accept();
 
@@ -126,12 +156,15 @@ static void loop()
 		uint8_t num_bytes = 0;
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
+
 		// Time of connection start.
-		const unsigned long start = millis();
+		last_connection_start = millis();
 
 		debugln("request_begin");
 		while (client.connected()) {
+			wdt_reset();
 			Ethernet.maintain();
+
 			char c = client.read();
 			#ifdef ENABLE_DEBUG_LOGGING
 			char last_printed = '\n';
@@ -168,7 +201,9 @@ static void loop()
 
 				if (num_newlines == 2) {
 					debugln("request_end");
-					// Send answer.
+					// Send response.
+					// Watchdog will be triggered if send will
+					// stuck for too long.
 					send_prometheus_response(client);
 					break;
 				}
@@ -183,7 +218,7 @@ static void loop()
 				#endif
 			}
 
-			if (millis() - start > request_timeout) {
+			if (millis() - last_connection_start > request_timeout) {
 				#ifdef ENABLE_DEBUG_LOGGING
 				if (last_printed != '\n') {
 					debugln();
@@ -223,6 +258,10 @@ static void send_prometheus_response(EthernetClient &client)
 
 	// We ask all sensors.
 	for (uint8_t i = 0; i < num_sensors; i++) {
+		if (i % 4 == 0) {
+			wdt_reset();
+		}
+
 		debug("querying_sensor n=");
 		debug(i);
 
