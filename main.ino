@@ -127,7 +127,7 @@ void loop()
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
 		// Time of connection start.
-		unsigned long start = millis();
+		const unsigned long start = millis();
 
 		debugln("request_begin");
 		while (client.connected()) {
