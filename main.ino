@@ -122,6 +122,8 @@ void loop()
 		info("client_connected remote_ip=");
 		infoln(client.remoteIP());
 
+		// Number of bytes read.
+		uint8_t num_bytes = 0;
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
 		// Time of connection start.
@@ -136,6 +138,18 @@ void loop()
 			#endif
 
 			if (c >= 0) {
+				num_bytes++;
+				if (!num_bytes) {
+					// uint8_t overflow => more than 255 bytes.
+					#ifdef ENABLE_DEBUG_LOGGING
+					if (last_printed != '\n') {
+						debugln();
+					}
+					#endif
+					infoln("error request_too_long");
+					break;
+				}
+
 				// Skip all data until the end of HTTP request.
 				switch (c) {
 				case '\r':
