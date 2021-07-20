@@ -217,6 +217,13 @@ void send_prometheus_response(EthernetClient &client)
 	client.print("Connnection: close\r\n\r\n");
 
 	// Send Prometheus body.
+	const unsigned long uptime = millis();
+	client.print("sensor_exporter_uptime{mac=\"" MAC_STR "\"} ");
+	client.print(uptime);
+	client.print("\r\n");
+	debug("uptime milliseconds=");
+	debugln(uptime);
+
 	// We ask all sensors.
 	for (uint8_t i = 0; i < num_sensors; i++) {
 		debug("querying_sensor n=");
