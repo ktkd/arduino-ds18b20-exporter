@@ -222,7 +222,7 @@ void send_prometheus_response(EthernetClient &client)
 		debug("querying_sensor n=");
 		debug(i);
 
-		client.print("sensor{addr=\"");
+		client.print("sensor{mac=\"" MAC_STR "\",addr=\"");
 		for (uint8_t j = 0; j < 8; j++) {
 			if (j) {
 				client.print('.');

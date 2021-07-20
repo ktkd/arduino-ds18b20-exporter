@@ -64,8 +64,8 @@ build/main.ino.hex: main.ino toolchain/$(ARDUINO_TOOLCHAIN_NAME)
 			-fqbn "$(ARDUINO_FQBN)" \
 			-warnings "all" \
 			-prefs "runtime.tools.ctags.path=$$(echo toolchain/$(ARDUINO_TOOLCHAIN_NAME)/tools-builder/ctags/*)" \
-			-prefs "compiler.c.extra_flags=$(EXTRA_CFLAGS) -DMAC=$(mac_c) -DIP=$(ip_c)" \
-			-prefs "compiler.cpp.extra_flags=$(EXTRA_CFLAGS) -DMAC=$(mac_c) -DIP=$(ip_c)" \
+			-prefs "compiler.c.extra_flags=$(EXTRA_CFLAGS) -DMAC_STR=\"$(MAC)\" -DMAC=$(mac_c) -DIP=$(ip_c)" \
+			-prefs "compiler.cpp.extra_flags=$(EXTRA_CFLAGS) -DMAC_STR=\"$(MAC)\" -DMAC=$(mac_c) -DIP=$(ip_c)" \
 			-compile \
 			-verbose \
 			$(EXTRA_ARDUINO_BUILDER_OPTS) \
