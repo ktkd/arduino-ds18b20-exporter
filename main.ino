@@ -13,32 +13,32 @@
 #define MAX_SENSORS 16
 
 // Digital pin for sensors.
-const uint8_t ds_pin = 3;
+static const uint8_t ds_pin = 3;
 
 // Ethernet Shield MAC address, use value on back of shield.
-const uint8_t mac[] = {MAC};
+static const uint8_t mac[] = {MAC};
 // IP address, will depend on your local network.
-const IPAddress ip(IP);
+static const IPAddress ip(IP);
 // TCP port for HTTP server.
-const uint16_t port = 80;
+static const uint16_t port = 80;
 
 // How long we should wait for request from client.
-const unsigned long request_timeout = 2000;  /* milliseconds */
+static const unsigned long request_timeout = 2000;  /* milliseconds */
 
 /*
  *  Global objects:
  */
 
 // Initialize the sensors library.
-DS18B20 ds(ds_pin);
+static DS18B20 ds(ds_pin);
 
 // Initialize the Ethernet server library.
-EthernetServer server(port);
+static EthernetServer server(port);
 
 // Total number of discovered sensors.
-uint8_t num_sensors;
+static uint8_t num_sensors;
 // Information about discovered sensors.
-struct {
+static struct {
 	uint8_t address[8];
 	uint8_t resolution;
 	uint8_t power_mode;
@@ -61,7 +61,7 @@ struct {
 /*
  *  Initialization.
  */
-void setup()
+static void setup()
 {
 	// Open Serial communications and wait for port to open.
 	Serial.begin(115200);
@@ -113,7 +113,7 @@ void setup()
 /*
  *  Main loop.
  */
-void loop()
+static void loop()
 {
 	// Listen for incoming clients.
 	EthernetClient client = server.accept();
@@ -204,7 +204,7 @@ void loop()
 /*
  *  Format and send HTTP response for Prometheus.
  */
-void send_prometheus_response(EthernetClient &client)
+static void send_prometheus_response(EthernetClient &client)
 {
 	infoln("sending_response");
 
