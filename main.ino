@@ -1,3 +1,5 @@
+#include <avr/wdt.h>
+
 #include <SPI.h>
 #include <UIPEthernet.h>
 #include <DS18B20.h>
@@ -13,36 +15,42 @@
 #define MAX_SENSORS 16
 
 // Digital pin for sensors.
-const uint8_t ds_pin = 3;
+static const uint8_t ds_pin = 3;
 
 // Ethernet Shield MAC address, use value on back of shield.
-const uint8_t mac[] = {0x90, 0xa2, 0xda, 0x0d, 0x10, 0x5a};
+static const uint8_t mac[] = {MAC};
 // IP address, will depend on your local network.
-const IPAddress ip(192, 168, 1, 41);
+static const IPAddress ip(IP);
 // TCP port for HTTP server.
-const uint16_t port = 80;
+static const uint16_t port = 80;
 
 // How long we should wait for request from client.
-const unsigned long request_timeout = 2000;  /* milliseconds */
+static const unsigned long request_timeout = 2000;  /* milliseconds */
+
+// Reset system if no connections handled within this period of time.
+static const unsigned long max_time_without_connections = 60000;  /* milliseconds */
 
 /*
  *  Global objects:
  */
 
 // Initialize the sensors library.
-DS18B20 ds(ds_pin);
+static DS18B20 ds(ds_pin);
 
 // Initialize the Ethernet server library.
-EthernetServer server(port);
+static EthernetServer server(port);
 
 // Total number of discovered sensors.
-uint8_t num_sensors;
+static uint8_t num_sensors;
 // Information about discovered sensors.
-struct {
+static struct {
 	uint8_t address[8];
 	uint8_t resolution;
-	bool external_power;
+	uint8_t power_mode;
 } sensor_info[MAX_SENSORS];
+
+// Time of last connection start.
+static unsigned long last_connection_start;
 
 /*
  *  Logging macros:
@@ -59,12 +67,24 @@ struct {
 #define infoln(...) Serial.println(__VA_ARGS__)
 
 /*
+ *  Issue reset by watchdog.
+ */
+static void system_reset()
+{
+	wdt_enable(WDTO_15MS);
+	for (;;);
+}
+
+/*
  *  Initialization.
  */
-void setup()
+static void setup()
 {
+	wdt_enable(WDTO_4S);
+
 	// Open Serial communications and wait for port to open.
 	Serial.begin(115200);
+	infoln();
 
 	// Start the Ethernet connection and the server.
 	Ethernet.begin(mac, ip);
@@ -78,8 +98,8 @@ void setup()
 	// Find all temperature sensors.
 	for (num_sensors = 0; ds.selectNext(); num_sensors++) {
 		if (num_sensors >= MAX_SENSORS) {
-			infoln("error_halt too_many_sensors");
-			for (;;);
+			infoln("error_fatal too_many_sensors");
+			system_reset();
 		};
 
 		info("found_sensor n=");
@@ -98,22 +118,33 @@ void setup()
 		sensor_info[num_sensors].resolution = ds.getResolution();
 		info(sensor_info[num_sensors].resolution);
 
-		sensor_info[num_sensors].external_power = ds.getPowerMode();
-		if (sensor_info[num_sensors].external_power) {
+		sensor_info[num_sensors].power_mode = ds.getPowerMode();
+		if (sensor_info[num_sensors].power_mode) {
 			infoln(" pwr=external");
 		} else {
 			infoln(" pwr=parasite");
 		}
+
+		wdt_reset();
 	}
 
 	infoln();
+	last_connection_start = millis();
 }
 
 /*
  *  Main loop.
  */
-void loop()
+static void loop()
 {
+	wdt_reset();
+	Ethernet.maintain();
+
+	if (millis() - last_connection_start > max_time_without_connections) {
+		infoln("error_fatal no_connections");
+		system_reset();
+	}
+
 	// Listen for incoming clients.
 	EthernetClient client = server.accept();
 
@@ -121,18 +152,37 @@ void loop()
 		info("client_connected remote_ip=");
 		infoln(client.remoteIP());
 
+		// Number of bytes read.
+		uint8_t num_bytes = 0;
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
+
 		// Time of connection start.
-		unsigned long start = millis();
+		last_connection_start = millis();
 
 		debugln("request_begin");
 		while (client.connected()) {
+			wdt_reset();
 			Ethernet.maintain();
+
 			char c = client.read();
+			#ifdef ENABLE_DEBUG_LOGGING
 			char last_printed = '\n';
+			#endif
 
 			if (c >= 0) {
+				num_bytes++;
+				if (!num_bytes) {
+					// uint8_t overflow => more than 255 bytes.
+					#ifdef ENABLE_DEBUG_LOGGING
+					if (last_printed != '\n') {
+						debugln();
+					}
+					#endif
+					infoln("error request_too_long");
+					break;
+				}
+
 				// Skip all data until the end of HTTP request.
 				switch (c) {
 				case '\r':
@@ -151,15 +201,24 @@ void loop()
 
 				if (num_newlines == 2) {
 					debugln("request_end");
-					// Send answer.
+					// Send response.
+					// Watchdog will be triggered if send will
+					// stuck for too long.
 					send_prometheus_response(client);
 					break;
 				}
+
+				#ifdef ENABLE_DEBUG_LOGGING
+				if (((c < ' ') || (c > '~')) && (c != '\n')) {
+					// Replace non-printable characters with dots.
+					c = '.';
+				}
 				debug(c);
 				last_printed = c;
+				#endif
 			}
 
-			if (millis() - start > request_timeout) {
+			if (millis() - last_connection_start > request_timeout) {
 				#ifdef ENABLE_DEBUG_LOGGING
 				if (last_printed != '\n') {
 					debugln();
@@ -180,25 +239,33 @@ void loop()
 /*
  *  Format and send HTTP response for Prometheus.
  */
-void send_prometheus_response(EthernetClient &client)
+static void send_prometheus_response(EthernetClient &client)
 {
 	infoln("sending_response");
 
 	// Send a standard http response header.
 	client.print("HTTP/1.1 200 OK\r\n");
-
-	// Content-Type from https://github.com/siimon/prom-client/blob/master/lib/registry.js
-	// 'text/plain; version=0.0.4; charset=utf-8'
-	client.print("Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n");
+	client.print("Content-Type: text/plain; charset=utf-8\r\n");
 	client.print("Connnection: close\r\n\r\n");
 
 	// Send Prometheus body.
+	const unsigned long uptime = millis();
+	client.print("sensor_exporter_uptime{mac=\"" MAC_STR "\"} ");
+	client.print(uptime);
+	client.print("\r\n");
+	debug("uptime milliseconds=");
+	debugln(uptime);
+
 	// We ask all sensors.
 	for (uint8_t i = 0; i < num_sensors; i++) {
+		if (i % 4 == 0) {
+			wdt_reset();
+		}
+
 		debug("querying_sensor n=");
 		debug(i);
 
-		client.print("sensor{addr=\"");
+		client.print("sensor{mac=\"" MAC_STR "\",addr=\"");
 		for (uint8_t j = 0; j < 8; j++) {
 			if (j) {
 				client.print('.');
@@ -206,21 +273,21 @@ void send_prometheus_response(EthernetClient &client)
 			client.print(sensor_info[i].address[j]);
 		}
 
-		// Select sensor by address.
-		ds.select(sensor_info[i].address);
-
 		client.print("\",res=\"");
 		client.print(sensor_info[i].resolution);
 
 		client.print("\",pwr=\"");
-		if (sensor_info[i].external_power) {
+		if (sensor_info[i].power_mode) {
 			client.print("external");
 		} else {
 			client.print("parasite");
 		}
 		client.print("\"} ");
 
-		const float temperature = ds.getTempC();
+		const float temperature = ds.getTempC(
+				sensor_info[i].address,
+				sensor_info[i].resolution,
+				sensor_info[i].power_mode);
 		client.print(temperature);
 		client.print("\r\n");
 		debug(" temperature=");

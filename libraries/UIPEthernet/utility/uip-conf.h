@@ -87,7 +87,7 @@ typedef unsigned short uip_stats_t;
  *
  * \hideinitializer
  */
-#define UIP_CONF_MAX_LISTENPORTS 4
+#define UIP_CONF_MAX_LISTENPORTS 1
 
 /**
  * uIP buffer size.

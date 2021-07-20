@@ -89,6 +89,36 @@ float DS18B20::getTempC() {
     return temp / 16.0;
 }
 
+float DS18B20::getTempC(uint8_t address[], uint8_t resolution, uint8_t power_mode) {
+    memcpy(selectedAddress, address, 8);
+    sendCommand(MATCH_ROM, CONVERT_T, !power_mode);
+    delayForConversion(resolution, power_mode);
+    readScratchpad();
+    uint8_t lsb = selectedScratchpad[TEMP_LSB];
+    uint8_t msb = selectedScratchpad[TEMP_MSB];
+
+    switch (resolution) {
+        case 9:
+            lsb &= 0xF8;
+            break;
+        case 10:
+            lsb &= 0xFC;
+            break;
+        case 11:
+            lsb &= 0xFE;
+            break;
+    }
+
+    uint8_t sign = msb & 0x80;
+    int16_t temp = (msb << 8) + lsb;
+
+    if (sign) {
+        temp = ((temp ^ 0xffff) + 1) * -1;
+    }
+
+    return temp / 16.0;
+}
+
 float DS18B20::getTempF() {
     return getTempC() * 1.8 + 32;
 }
