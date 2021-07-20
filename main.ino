@@ -41,7 +41,7 @@ uint8_t num_sensors;
 struct {
 	uint8_t address[8];
 	uint8_t resolution;
-	bool external_power;
+	uint8_t power_mode;
 } sensor_info[MAX_SENSORS];
 
 /*
@@ -99,8 +99,8 @@ void setup()
 		sensor_info[num_sensors].resolution = ds.getResolution();
 		info(sensor_info[num_sensors].resolution);
 
-		sensor_info[num_sensors].external_power = ds.getPowerMode();
-		if (sensor_info[num_sensors].external_power) {
+		sensor_info[num_sensors].power_mode = ds.getPowerMode();
+		if (sensor_info[num_sensors].power_mode) {
 			infoln(" pwr=external");
 		} else {
 			infoln(" pwr=parasite");
@@ -230,21 +230,21 @@ void send_prometheus_response(EthernetClient &client)
 			client.print(sensor_info[i].address[j]);
 		}
 
-		// Select sensor by address.
-		ds.select(sensor_info[i].address);
-
 		client.print("\",res=\"");
 		client.print(sensor_info[i].resolution);
 
 		client.print("\",pwr=\"");
-		if (sensor_info[i].external_power) {
+		if (sensor_info[i].power_mode) {
 			client.print("external");
 		} else {
 			client.print("parasite");
 		}
 		client.print("\"} ");
 
-		const float temperature = ds.getTempC();
+		const float temperature = ds.getTempC(
+				sensor_info[i].address,
+				sensor_info[i].resolution,
+				sensor_info[i].power_mode);
 		client.print(temperature);
 		client.print("\r\n");
 		debug(" temperature=");

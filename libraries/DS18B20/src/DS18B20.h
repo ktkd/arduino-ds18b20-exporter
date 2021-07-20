@@ -43,6 +43,7 @@ class DS18B20 {
         uint8_t selectNextAlarm();
         void resetSearch();
         float getTempC();
+        float getTempC(uint8_t address[], uint8_t resolution, uint8_t power_mode);
         float getTempF();
         uint8_t getResolution();
         void setResolution(uint8_t resolution);
