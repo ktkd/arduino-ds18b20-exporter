@@ -65,6 +65,7 @@ void setup()
 {
 	// Open Serial communications and wait for port to open.
 	Serial.begin(115200);
+	infoln();
 
 	// Start the Ethernet connection and the server.
 	Ethernet.begin(mac, ip);
@@ -130,7 +131,9 @@ void loop()
 		while (client.connected()) {
 			Ethernet.maintain();
 			char c = client.read();
+			#ifdef ENABLE_DEBUG_LOGGING
 			char last_printed = '\n';
+			#endif
 
 			if (c >= 0) {
 				// Skip all data until the end of HTTP request.
@@ -155,8 +158,15 @@ void loop()
 					send_prometheus_response(client);
 					break;
 				}
+
+				#ifdef ENABLE_DEBUG_LOGGING
+				if (((c < ' ') || (c > '~')) && (c != '\n')) {
+					// Replace non-printable characters with dots.
+					c = '.';
+				}
 				debug(c);
 				last_printed = c;
+				#endif
 			}
 
 			if (millis() - start > request_timeout) {
