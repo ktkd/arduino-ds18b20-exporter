@@ -210,10 +210,7 @@ static void send_prometheus_response(EthernetClient &client)
 
 	// Send a standard http response header.
 	client.print("HTTP/1.1 200 OK\r\n");
-
-	// Content-Type from https://github.com/siimon/prom-client/blob/master/lib/registry.js
-	// 'text/plain; version=0.0.4; charset=utf-8'
-	client.print("Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n");
+	client.print("Content-Type: text/plain; charset=utf-8\r\n");
 	client.print("Connnection: close\r\n\r\n");
 
 	// Send Prometheus body.
