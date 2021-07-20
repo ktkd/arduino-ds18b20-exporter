@@ -1,3 +1,6 @@
+MAC = 90:a2:da:0d:10:5a
+IP = 192.168.1.41
+
 ARDUINO_TOOLCHAIN_VER = 1.8.15
 ARDUINO_TOOLCHAIN_NAME = arduino-$(ARDUINO_TOOLCHAIN_VER)
 ARDUINO_TOOLCHAIN_URL = https://downloads.arduino.cc/$(ARDUINO_TOOLCHAIN_NAME)-linux64.tar.xz
@@ -13,14 +16,18 @@ EXTRA_CFLAGS = -Wno-cpp $(CUSTOM_EXTRA_CFLAGS)
 help:
 	@echo "make fw               # Build firmware"
 	@echo "make help             # Show this help message"
+	@echo "make clean            # Remove compiled firmware HEX files"
 	@echo "make clean-toolchain  # Remove downloaded toolchain"
 	@echo "make clean-all        # Remove everything except of source code"
 
+mac_fname = $(subst :,.,$(MAC))
+fw_fname = arduino-ds18b20-exporter-$(mac_fname)-$(IP).hex
+
 .PHONY: fw
-fw: build/main.ino.hex
+fw: fw/$(fw_fname)
 	@echo
 	@echo "Here is your firmware:"
-	@ls -lh "$(CURDIR)/build/main.ino.hex"
+	@ls -lh "$(<)"
 
 arduino_toolchain_tarball = $(notdir $(ARDUINO_TOOLCHAIN_URL))
 
@@ -39,6 +46,10 @@ toolchain/$(ARDUINO_TOOLCHAIN_NAME): toolchain/$(arduino_toolchain_tarball)
 	touch "$(CURDIR)/toolchain/.incomplete/$(ARDUINO_TOOLCHAIN_NAME)"
 	mv "$(CURDIR)/toolchain/.incomplete/$(ARDUINO_TOOLCHAIN_NAME)" "$(@)"
 
+comma = ,
+mac_c = 0x$(subst :,$(comma)0x,$(MAC))
+ip_c = $(subst .,$(comma),$(IP))
+
 # Build firmware. Cleans and reuilds each time because MAC/IP may change.
 .PHONY: build/main.ino.hex
 build/main.ino.hex: main.ino toolchain/$(ARDUINO_TOOLCHAIN_NAME)
@@ -53,12 +64,20 @@ build/main.ino.hex: main.ino toolchain/$(ARDUINO_TOOLCHAIN_NAME)
 			-fqbn "$(ARDUINO_FQBN)" \
 			-warnings "all" \
 			-prefs "runtime.tools.ctags.path=$$(echo toolchain/$(ARDUINO_TOOLCHAIN_NAME)/tools-builder/ctags/*)" \
-			-prefs "compiler.c.extra_flags=$(EXTRA_CFLAGS)" \
-			-prefs "compiler.cpp.extra_flags=$(EXTRA_CFLAGS)" \
+			-prefs "compiler.c.extra_flags=$(EXTRA_CFLAGS) -DMAC=$(mac_c) -DIP=$(ip_c)" \
+			-prefs "compiler.cpp.extra_flags=$(EXTRA_CFLAGS) -DMAC=$(mac_c) -DIP=$(ip_c)" \
 			-compile \
 			-verbose \
 			$(EXTRA_ARDUINO_BUILDER_OPTS) \
 			"$(<)"
+
+fw/$(fw_fname): build/main.ino.hex main.ino
+	mkdir -p "$(CURDIR)/fw"
+	cp "$(<)" "$(@)"
+
+.PHONY: clean
+clean:
+	rm -rf "$(CURDIR)/fw"
 
 .PHONY: clean-toolchain
 clean-toolchain:
@@ -69,4 +88,4 @@ clean-build:
 	rm -rf "$(CURDIR)/build"
 
 .PHONY: clean-all
-clean-all: clean-toolchain clean-build
+clean-all: clean clean-toolchain clean-build

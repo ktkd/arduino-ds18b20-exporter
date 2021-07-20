@@ -16,9 +16,9 @@
 const uint8_t ds_pin = 3;
 
 // Ethernet Shield MAC address, use value on back of shield.
-const uint8_t mac[] = {0x90, 0xa2, 0xda, 0x0d, 0x10, 0x5a};
+const uint8_t mac[] = {MAC};
 // IP address, will depend on your local network.
-const IPAddress ip(192, 168, 1, 41);
+const IPAddress ip(IP);
 // TCP port for HTTP server.
 const uint16_t port = 80;
 
