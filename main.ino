@@ -95,6 +95,10 @@ static void setup()
 	info(" port=");
 	infoln(port);
 
+	// Give sensors some time to start.
+	delay(1000);
+	wdt_reset();
+
 	// Find all temperature sensors.
 	for (num_sensors = 0; ds.selectNext(); num_sensors++) {
 		if (num_sensors >= MAX_SENSORS) {
