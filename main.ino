@@ -262,9 +262,7 @@ static void send_prometheus_response(EthernetClient &client)
 
 	// We ask all sensors.
 	for (uint8_t i = 0; i < num_sensors; i++) {
-		if (i % 4 == 0) {
-			wdt_reset();
-		}
+		wdt_reset();
 
 		debug("querying_sensor n=");
 		debug(i);
