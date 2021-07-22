@@ -95,6 +95,10 @@ static void setup()
 	info(" port=");
 	infoln(port);
 
+	// Give sensors some time to start.
+	delay(1000);
+	wdt_reset();
+
 	// Find all temperature sensors.
 	for (num_sensors = 0; ds.selectNext(); num_sensors++) {
 		if (num_sensors >= MAX_SENSORS) {
@@ -258,9 +262,7 @@ static void send_prometheus_response(EthernetClient &client)
 
 	// We ask all sensors.
 	for (uint8_t i = 0; i < num_sensors; i++) {
-		if (i % 4 == 0) {
-			wdt_reset();
-		}
+		wdt_reset();
 
 		debug("querying_sensor n=");
 		debug(i);
