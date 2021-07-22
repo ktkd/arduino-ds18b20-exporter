@@ -6,6 +6,16 @@ Parts:
  * 1x arduino nano
  * 1x enc28j80 ethernet shield
 
+# how it work's
+Just curl http://192.168.1.41 :
+```
+sensor_exporter_uptime{mac="90:a2:da:0d:10:5a"} 1908564
+sensor{mac="90:a2:da:0d:10:5a",addr="40.28.168.7.0.0.128.63",res="12",pwr="parasite"} 21.94
+sensor{mac="90:a2:da:0d:10:5a",addr="40.129.18.124.6.0.0.87",res="9",pwr="external"} 24.00
+sensor{mac="90:a2:da:0d:10:5a",addr="40.203.37.123.6.0.0.190",res="9",pwr="external"} 36.00
+sensor{mac="90:a2:da:0d:10:5a",addr="40.255.47.100.102.20.2.94",res="12",pwr="external"} 8.75
+```
+
 ## ⚠️ Warning ⚠️
 
 Make sure that your Arduino is flashed with bootloader supporting AVR watchdog,
