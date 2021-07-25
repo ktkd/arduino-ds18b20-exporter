@@ -248,15 +248,15 @@ static void send_prometheus_response(EthernetClient &client)
 	infoln("sending_response");
 
 	// Send a standard http response header.
-	client.print("HTTP/1.1 200 OK\r\n");
-	client.print("Content-Type: text/plain; charset=utf-8\r\n");
-	client.print("Connnection: close\r\n\r\n");
+	client.print("HTTP/1.1 200 OK\n");
+	client.print("Content-Type: text/plain; charset=utf-8\n");
+	client.print("Connnection: close\n\n");
 
 	// Send Prometheus body.
 	const unsigned long uptime = millis();
 	client.print("sensor_exporter_uptime{mac=\"" MAC_STR "\"} ");
 	client.print(uptime);
-	client.print("\r\n");
+	client.print("\n");
 	debug("uptime milliseconds=");
 	debugln(uptime);
 
@@ -291,7 +291,7 @@ static void send_prometheus_response(EthernetClient &client)
 				sensor_info[i].resolution,
 				sensor_info[i].power_mode);
 		client.print(temperature);
-		client.print("\r\n");
+		client.print("\n");
 		debug(" temperature=");
 		debugln(temperature);
 	}
