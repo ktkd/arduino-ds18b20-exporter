@@ -157,7 +157,7 @@ static void loop()
 		infoln(client.remoteIP());
 
 		// Number of bytes read.
-		uint8_t num_bytes = 0;
+		uint16_t num_bytes = 0;
 		// Number of consecutive newlines.
 		uint8_t num_newlines = 0;
 
@@ -176,7 +176,7 @@ static void loop()
 
 			if (c >= 0) {
 				num_bytes++;
-				if (!num_bytes) {
+				if (num_bytes>=1024) {
 					// uint8_t overflow => more than 255 bytes.
 					#ifdef ENABLE_DEBUG_LOGGING
 					if (last_printed != '\n') {
